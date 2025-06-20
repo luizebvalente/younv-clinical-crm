@@ -26,13 +26,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Plus, Edit, Trash2, Users, Mail, Phone } from 'lucide-react'
-import dataService from '@/services/dataService'
+import firebaseDataService from '@/services/firebaseDataService'
 
 const Medicos = () => {
   const [medicos, setMedicos] = useState([])
   const [especialidades, setEspecialidades] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     nome: '',
     crm: '',
@@ -45,9 +46,20 @@ const Medicos = () => {
     loadData()
   }, [])
 
-  const loadData = () => {
-    setMedicos(dataService.getAll('medicos'))
-    setEspecialidades(dataService.getAll('especialidades'))
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [medicosData, especialidadesData] = await Promise.all([
+        firebaseDataService.getAll('medicos'),
+        firebaseDataService.getAll('especialidades')
+      ])
+      setMedicos(medicosData)
+      setEspecialidades(especialidadesData)
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getEspecialidadeNome = (id) => {
@@ -55,17 +67,26 @@ const Medicos = () => {
     return especialidade ? especialidade.nome : 'N/A'
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (editingItem) {
-      dataService.update('medicos', editingItem.id, formData)
-    } else {
-      dataService.create('medicos', { ...formData, ativo: true })
+    try {
+      setLoading(true)
+      
+      if (editingItem) {
+        await firebaseDataService.update('medicos', editingItem.id, formData)
+      } else {
+        await firebaseDataService.create('medicos', { ...formData, ativo: true })
+      }
+      
+      await loadData()
+      resetForm()
+    } catch (error) {
+      console.error('Erro ao salvar médico:', error)
+      alert('Erro ao salvar médico. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
-    
-    loadData()
-    resetForm()
   }
 
   const handleEdit = (item) => {
@@ -75,15 +96,23 @@ const Medicos = () => {
       crm: item.crm,
       email: item.email,
       telefone: item.telefone,
-      especialidade_id: item.especialidade_id
+      especialidade_id: item.especialidade_id || item.especialidadeId
     })
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Tem certeza que deseja excluir este médico?')) {
-      dataService.delete('medicos', id)
-      loadData()
+      try {
+        setLoading(true)
+        await firebaseDataService.delete('medicos', id)
+        await loadData()
+      } catch (error) {
+        console.error('Erro ao excluir médico:', error)
+        alert('Erro ao excluir médico. Tente novamente.')
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
@@ -97,6 +126,17 @@ const Medicos = () => {
     })
     setEditingItem(null)
     setIsDialogOpen(false)
+  }
+
+  if (loading && medicos.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando médicos...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -183,8 +223,8 @@ const Medicos = () => {
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editingItem ? 'Atualizar' : 'Criar'}
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : (editingItem ? 'Atualizar' : 'Criar')}
                 </Button>
               </div>
             </form>
@@ -238,7 +278,7 @@ const Medicos = () => {
                 <TableRow key={medico.id}>
                   <TableCell className="font-medium">{medico.nome}</TableCell>
                   <TableCell>{medico.crm}</TableCell>
-                  <TableCell>{getEspecialidadeNome(medico.especialidade_id)}</TableCell>
+                  <TableCell>{getEspecialidadeNome(medico.especialidade_id || medico.especialidadeId)}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center text-sm">
@@ -266,6 +306,7 @@ const Medicos = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(medico)}
+                        disabled={loading}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -273,6 +314,7 @@ const Medicos = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDelete(medico.id)}
+                        disabled={loading}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
