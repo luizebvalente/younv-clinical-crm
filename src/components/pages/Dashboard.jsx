@@ -14,24 +14,44 @@ import {
   LineChart,
   Line
 } from 'recharts'
-import { Users, UserPlus, Calendar, TrendingUp, DollarSign, Target, Activity } from 'lucide-react'
-import dataService from '@/services/dataService'
+import { Users, UserPlus, Calendar, TrendingUp, DollarSign, Target, Activity, Loader2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import firebaseDataService from '@/services/firebaseDataService'
 
 const Dashboard = () => {
   const [leads, setLeads] = useState([])
   const [medicos, setMedicos] = useState([])
   const [especialidades, setEspecialidades] = useState([])
   const [procedimentos, setProcedimentos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     loadData()
   }, [])
 
-  const loadData = () => {
-    setLeads(dataService.getAll('leads'))
-    setMedicos(dataService.getAll('medicos'))
-    setEspecialidades(dataService.getAll('especialidades'))
-    setProcedimentos(dataService.getAll('procedimentos'))
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const [leadsData, medicosData, especialidadesData, procedimentosData] = await Promise.all([
+        firebaseDataService.getAll('leads'),
+        firebaseDataService.getAll('medicos'),
+        firebaseDataService.getAll('especialidades'),
+        firebaseDataService.getAll('procedimentos')
+      ])
+      
+      setLeads(leadsData)
+      setMedicos(medicosData)
+      setEspecialidades(especialidadesData)
+      setProcedimentos(procedimentosData)
+    } catch (err) {
+      console.error('Erro ao carregar dados do dashboard:', err)
+      setError('Erro ao carregar dados do dashboard. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Cálculos para métricas
@@ -109,8 +129,24 @@ const Dashboard = () => {
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando dashboard...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -191,15 +227,21 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={leadsPorCanal()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="canal" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="quantidade" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+            {leadsPorCanal().length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={leadsPorCanal()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="canal" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="quantidade" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-gray-500">
+                Nenhum dado disponível
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -212,15 +254,21 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={leadsPorMes()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="quantidade" stroke="#8884d8" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            {leadsPorMes().length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={leadsPorMes()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="quantidade" stroke="#8884d8" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-gray-500">
+                Nenhum dado disponível
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -14,22 +14,41 @@ import {
   LineChart,
   Line
 } from 'recharts'
-import { Users, UserPlus, Calendar, TrendingUp, DollarSign, Target } from 'lucide-react'
-import dataService from '@/services/dataService'
+import { Users, UserPlus, Calendar, TrendingUp, DollarSign, Target, Loader2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import firebaseDataService from '@/services/firebaseDataService'
 
 const Relatorios = () => {
   const [leads, setLeads] = useState([])
   const [medicos, setMedicos] = useState([])
   const [especialidades, setEspecialidades] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     loadData()
   }, [])
 
-  const loadData = () => {
-    setLeads(dataService.getAll('leads'))
-    setMedicos(dataService.getAll('medicos'))
-    setEspecialidades(dataService.getAll('especialidades'))
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const [leadsData, medicosData, especialidadesData] = await Promise.all([
+        firebaseDataService.getAll('leads'),
+        firebaseDataService.getAll('medicos'),
+        firebaseDataService.getAll('especialidades')
+      ])
+      
+      setLeads(leadsData)
+      setMedicos(medicosData)
+      setEspecialidades(especialidadesData)
+    } catch (err) {
+      console.error('Erro ao carregar dados dos relatórios:', err)
+      setError('Erro ao carregar dados dos relatórios. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Cálculos para métricas
@@ -100,8 +119,24 @@ const Relatorios = () => {
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando relatórios...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
@@ -197,15 +232,21 @@ const Relatorios = () => {
             <CardTitle>Leads por Canal de Contato</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={leadsPorCanal()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="canal" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="quantidade" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+            {leadsPorCanal().length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={leadsPorCanal()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="canal" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="quantidade" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                Nenhum dado disponível
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -215,25 +256,31 @@ const Relatorios = () => {
             <CardTitle>Distribuição por Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={leadsPorStatus()}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ status, quantidade }) => `${status}: ${quantidade}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="quantidade"
-                >
-                  {leadsPorStatus().map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {leadsPorStatus().length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={leadsPorStatus()}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ status, quantidade }) => `${status}: ${quantidade}`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="quantidade"
+                  >
+                    {leadsPorStatus().map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                Nenhum dado disponível
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -243,16 +290,22 @@ const Relatorios = () => {
             <CardTitle>Performance dos Médicos</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={medicosPorAtendimento()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="nome" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="total" fill="#8884d8" name="Total de Leads" />
-                <Bar dataKey="convertidos" fill="#82ca9d" name="Convertidos" />
-              </BarChart>
-            </ResponsiveContainer>
+            {medicosPorAtendimento().length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={medicosPorAtendimento()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="nome" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="total" fill="#8884d8" name="Total de Leads" />
+                  <Bar dataKey="convertidos" fill="#82ca9d" name="Convertidos" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                Nenhum dado disponível
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -262,15 +315,21 @@ const Relatorios = () => {
             <CardTitle>Evolução de Leads (Últimos 6 Meses)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={leadsPorMes()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="quantidade" stroke="#8884d8" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            {leadsPorMes().length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={leadsPorMes()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="quantidade" stroke="#8884d8" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                Nenhum dado disponível
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -281,29 +340,37 @@ const Relatorios = () => {
           <CardTitle>Ranking de Médicos por Atendimentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {medicosPorAtendimento().map((medico, index) => (
-              <div key={medico.nome} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 font-bold text-sm">{index + 1}</span>
+          {medicosPorAtendimento().length > 0 ? (
+            <div className="space-y-4">
+              {medicosPorAtendimento().map((medico, index) => (
+                <div key={medico.nome} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 font-bold text-sm">{index + 1}</span>
+                    </div>
+                    <div>
+                      <p className="font-medium">{medico.nome}</p>
+                      <p className="text-sm text-gray-500">
+                        {medico.total} leads • {medico.convertidos} convertidos
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{medico.nome}</p>
-                    <p className="text-sm text-gray-500">
-                      {medico.total} leads • {medico.convertidos} convertidos
+                  <div className="text-right">
+                    <p className="text-lg font-bold">
+                      {medico.total > 0 ? ((medico.convertidos / medico.total) * 100).toFixed(1) : 0}%
                     </p>
+                    <p className="text-sm text-gray-500">Taxa de conversão</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold">
-                    {medico.total > 0 ? ((medico.convertidos / medico.total) * 100).toFixed(1) : 0}%
-                  </p>
-                  <p className="text-sm text-gray-500">Taxa de conversão</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500">Nenhum dado de médicos disponível.</p>
+              <p className="text-gray-400 text-sm">Cadastre médicos e leads para ver os relatórios.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

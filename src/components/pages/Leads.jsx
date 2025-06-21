@@ -27,8 +27,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Edit, Trash2, UserPlus, Phone, Mail, Calendar, DollarSign, Filter } from 'lucide-react'
-import dataService from '@/services/dataService'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Plus, Edit, Trash2, UserPlus, Phone, Mail, Calendar, DollarSign, Filter, Loader2 } from 'lucide-react'
+import firebaseDataService from '@/services/firebaseDataService'
 
 const Leads = () => {
   const [leads, setLeads] = useState([])
@@ -38,6 +39,9 @@ const Leads = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
   const [formData, setFormData] = useState({
     nome_paciente: '',
     telefone: '',
@@ -71,11 +75,28 @@ const Leads = () => {
     loadData()
   }, [])
 
-  const loadData = () => {
-    setLeads(dataService.getAll('leads'))
-    setMedicos(dataService.getAll('medicos'))
-    setEspecialidades(dataService.getAll('especialidades'))
-    setProcedimentos(dataService.getAll('procedimentos'))
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const [leadsData, medicosData, especialidadesData, procedimentosData] = await Promise.all([
+        firebaseDataService.getAll('leads'),
+        firebaseDataService.getAll('medicos'),
+        firebaseDataService.getAll('especialidades'),
+        firebaseDataService.getAll('procedimentos')
+      ])
+      
+      setLeads(leadsData)
+      setMedicos(medicosData)
+      setEspecialidades(especialidadesData)
+      setProcedimentos(procedimentosData)
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err)
+      setError('Erro ao carregar dados. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getMedicoNome = (id) => {
@@ -115,23 +136,33 @@ const Leads = () => {
     return colors[status] || 'bg-gray-100 text-gray-800'
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    const data = {
-      ...formData,
-      valor_orcado: parseFloat(formData.valor_orcado) || 0,
-      data_registro_contato: editingItem ? editingItem.data_registro_contato : new Date().toISOString()
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const data = {
+        ...formData,
+        valor_orcado: parseFloat(formData.valor_orcado) || 0,
+        data_registro_contato: editingItem ? editingItem.data_registro_contato : new Date().toISOString()
+      }
+      
+      if (editingItem) {
+        await firebaseDataService.update('leads', editingItem.id, data)
+      } else {
+        await firebaseDataService.create('leads', data)
+      }
+      
+      await loadData()
+      resetForm()
+    } catch (err) {
+      console.error('Erro ao salvar lead:', err)
+      setError('Erro ao salvar lead. Tente novamente.')
+    } finally {
+      setSaving(false)
     }
-    
-    if (editingItem) {
-      dataService.update('leads', editingItem.id, data)
-    } else {
-      dataService.create('leads', data)
-    }
-    
-    loadData()
-    resetForm()
   }
 
   const handleEdit = (item) => {
@@ -161,10 +192,16 @@ const Leads = () => {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Tem certeza que deseja excluir este lead?')) {
-      dataService.delete('leads', id)
-      loadData()
+      try {
+        setError(null)
+        await firebaseDataService.delete('leads', id)
+        await loadData()
+      } catch (err) {
+        console.error('Erro ao excluir lead:', err)
+        setError('Erro ao excluir lead. Tente novamente.')
+      }
     }
   }
 
@@ -193,6 +230,7 @@ const Leads = () => {
     })
     setEditingItem(null)
     setIsDialogOpen(false)
+    setError(null)
   }
 
   const filteredLeads = filterStatus === 'all' 
@@ -204,8 +242,24 @@ const Leads = () => {
   const convertidos = leads.filter(l => l.status === 'Convertido').length
   const valorTotal = leads.reduce((sum, lead) => sum + (lead.valor_orcado || 0), 0)
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando leads...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -235,6 +289,7 @@ const Leads = () => {
                     value={formData.nome_paciente}
                     onChange={(e) => setFormData({...formData, nome_paciente: e.target.value})}
                     required
+                    disabled={saving}
                   />
                 </div>
                 <div>
@@ -244,6 +299,7 @@ const Leads = () => {
                     value={formData.telefone}
                     onChange={(e) => setFormData({...formData, telefone: e.target.value})}
                     required
+                    disabled={saving}
                   />
                 </div>
               </div>
@@ -257,6 +313,7 @@ const Leads = () => {
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                     required
+                    disabled={saving}
                   />
                 </div>
                 <div>
@@ -267,6 +324,7 @@ const Leads = () => {
                     value={formData.data_nascimento}
                     onChange={(e) => setFormData({...formData, data_nascimento: e.target.value})}
                     required
+                    disabled={saving}
                   />
                 </div>
               </div>
@@ -277,6 +335,7 @@ const Leads = () => {
                   <Select 
                     value={formData.canal_contato} 
                     onValueChange={(value) => setFormData({...formData, canal_contato: value})}
+                    disabled={saving}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o canal" />
@@ -295,6 +354,7 @@ const Leads = () => {
                   <Select 
                     value={formData.status} 
                     onValueChange={(value) => setFormData({...formData, status: value})}
+                    disabled={saving}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o status" />
@@ -317,6 +377,7 @@ const Leads = () => {
                   value={formData.solicitacao_paciente}
                   onChange={(e) => setFormData({...formData, solicitacao_paciente: e.target.value})}
                   rows={3}
+                  disabled={saving}
                 />
               </div>
 
@@ -326,6 +387,7 @@ const Leads = () => {
                   <Select 
                     value={formData.medico_agendado_id} 
                     onValueChange={(value) => setFormData({...formData, medico_agendado_id: value})}
+                    disabled={saving}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o médico" />
@@ -344,6 +406,7 @@ const Leads = () => {
                   <Select 
                     value={formData.especialidade_id} 
                     onValueChange={(value) => setFormData({...formData, especialidade_id: value})}
+                    disabled={saving}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a especialidade" />
@@ -362,6 +425,7 @@ const Leads = () => {
                   <Select 
                     value={formData.procedimento_agendado_id} 
                     onValueChange={(value) => setFormData({...formData, procedimento_agendado_id: value})}
+                    disabled={saving}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o procedimento" />
@@ -386,6 +450,7 @@ const Leads = () => {
                     step="0.01"
                     value={formData.valor_orcado}
                     onChange={(e) => setFormData({...formData, valor_orcado: e.target.value})}
+                    disabled={saving}
                   />
                 </div>
                 <div>
@@ -393,6 +458,7 @@ const Leads = () => {
                   <Select 
                     value={formData.orcamento_fechado} 
                     onValueChange={(value) => setFormData({...formData, orcamento_fechado: value})}
+                    disabled={saving}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Status do orçamento" />
@@ -415,15 +481,23 @@ const Leads = () => {
                   value={formData.observacao_geral}
                   onChange={(e) => setFormData({...formData, observacao_geral: e.target.value})}
                   rows={3}
+                  disabled={saving}
                 />
               </div>
 
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={resetForm}>
+                <Button type="button" variant="outline" onClick={resetForm} disabled={saving}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editingItem ? 'Atualizar' : 'Criar'}
+                <Button type="submit" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    editingItem ? 'Atualizar' : 'Criar'
+                  )}
                 </Button>
               </div>
             </form>
@@ -495,80 +569,88 @@ const Leads = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Canal</TableHead>
-                <TableHead>Médico/Especialidade</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLeads.map((lead) => (
-                <TableRow key={lead.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{lead.nome_paciente}</div>
-                      <div className="text-sm text-gray-500">
-                        {formatDate(lead.data_registro_contato)}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center text-sm">
-                        <Phone className="h-3 w-3 mr-1" />
-                        {lead.telefone}
-                      </div>
-                      <div className="flex items-center text-sm">
-                        <Mail className="h-3 w-3 mr-1" />
-                        {lead.email}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{lead.canal_contato}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{getMedicoNome(lead.medico_agendado_id)}</div>
-                      <div className="text-sm text-gray-500">
-                        {getEspecialidadeNome(lead.especialidade_id)}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatCurrency(lead.valor_orcado)}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(lead.status)}>
-                      {lead.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(lead)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(lead.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {filteredLeads.length === 0 ? (
+            <div className="text-center py-8">
+              <UserPlus className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500">Nenhum lead encontrado.</p>
+              <p className="text-gray-400 text-sm">Clique em "Novo Lead" para começar.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Canal</TableHead>
+                  <TableHead>Médico/Especialidade</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredLeads.map((lead) => (
+                  <TableRow key={lead.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{lead.nome_paciente}</div>
+                        <div className="text-sm text-gray-500">
+                          {formatDate(lead.data_registro_contato)}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm">
+                          <Phone className="h-3 w-3 mr-1" />
+                          {lead.telefone}
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <Mail className="h-3 w-3 mr-1" />
+                          {lead.email}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{lead.canal_contato}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{getMedicoNome(lead.medico_agendado_id)}</div>
+                        <div className="text-sm text-gray-500">
+                          {getEspecialidadeNome(lead.especialidade_id)}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatCurrency(lead.valor_orcado)}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(lead.status)}>
+                        {lead.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(lead)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(lead.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

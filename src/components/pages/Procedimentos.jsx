@@ -25,14 +25,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Edit, Trash2, ClipboardList, DollarSign, Clock } from 'lucide-react'
-import dataService from '@/services/dataService'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Plus, Edit, Trash2, ClipboardList, DollarSign, Clock, Loader2 } from 'lucide-react'
+import firebaseDataService from '@/services/firebaseDataService'
 
 const Procedimentos = () => {
   const [procedimentos, setProcedimentos] = useState([])
   const [especialidades, setEspecialidades] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
   const [formData, setFormData] = useState({
     nome: '',
     valor: '',
@@ -47,9 +51,24 @@ const Procedimentos = () => {
     loadData()
   }, [])
 
-  const loadData = () => {
-    setProcedimentos(dataService.getAll('procedimentos'))
-    setEspecialidades(dataService.getAll('especialidades'))
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const [procedimentosData, especialidadesData] = await Promise.all([
+        firebaseDataService.getAll('procedimentos'),
+        firebaseDataService.getAll('especialidades')
+      ])
+      
+      setProcedimentos(procedimentosData)
+      setEspecialidades(especialidadesData)
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err)
+      setError('Erro ao carregar dados. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getEspecialidadeNome = (id) => {
@@ -73,23 +92,33 @@ const Procedimentos = () => {
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}min` : `${hours}h`
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    const data = {
-      ...formData,
-      valor: parseFloat(formData.valor),
-      duracao: parseInt(formData.duracao)
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const data = {
+        ...formData,
+        valor: parseFloat(formData.valor),
+        duracao: parseInt(formData.duracao)
+      }
+      
+      if (editingItem) {
+        await firebaseDataService.update('procedimentos', editingItem.id, data)
+      } else {
+        await firebaseDataService.create('procedimentos', { ...data, ativo: true })
+      }
+      
+      await loadData()
+      resetForm()
+    } catch (err) {
+      console.error('Erro ao salvar procedimento:', err)
+      setError('Erro ao salvar procedimento. Tente novamente.')
+    } finally {
+      setSaving(false)
     }
-    
-    if (editingItem) {
-      dataService.update('procedimentos', editingItem.id, data)
-    } else {
-      dataService.create('procedimentos', { ...data, ativo: true })
-    }
-    
-    loadData()
-    resetForm()
   }
 
   const handleEdit = (item) => {
@@ -104,10 +133,16 @@ const Procedimentos = () => {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Tem certeza que deseja excluir este procedimento?')) {
-      dataService.delete('procedimentos', id)
-      loadData()
+      try {
+        setError(null)
+        await firebaseDataService.delete('procedimentos', id)
+        await loadData()
+      } catch (err) {
+        console.error('Erro ao excluir procedimento:', err)
+        setError('Erro ao excluir procedimento. Tente novamente.')
+      }
     }
   }
 
@@ -121,12 +156,29 @@ const Procedimentos = () => {
     })
     setEditingItem(null)
     setIsDialogOpen(false)
+    setError(null)
   }
 
   const totalValue = procedimentos.reduce((sum, proc) => sum + proc.valor, 0)
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando procedimentos...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -155,6 +207,7 @@ const Procedimentos = () => {
                   value={formData.nome}
                   onChange={(e) => setFormData({...formData, nome: e.target.value})}
                   required
+                  disabled={saving}
                 />
               </div>
               <div>
@@ -166,6 +219,7 @@ const Procedimentos = () => {
                   value={formData.valor}
                   onChange={(e) => setFormData({...formData, valor: e.target.value})}
                   required
+                  disabled={saving}
                 />
               </div>
               <div>
@@ -176,6 +230,7 @@ const Procedimentos = () => {
                   value={formData.duracao}
                   onChange={(e) => setFormData({...formData, duracao: e.target.value})}
                   required
+                  disabled={saving}
                 />
               </div>
               <div>
@@ -183,6 +238,7 @@ const Procedimentos = () => {
                 <Select 
                   value={formData.categoria} 
                   onValueChange={(value) => setFormData({...formData, categoria: value})}
+                  disabled={saving}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma categoria" />
@@ -201,6 +257,7 @@ const Procedimentos = () => {
                 <Select 
                   value={formData.especialidade_id} 
                   onValueChange={(value) => setFormData({...formData, especialidade_id: value})}
+                  disabled={saving}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma especialidade" />
@@ -215,11 +272,18 @@ const Procedimentos = () => {
                 </Select>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={resetForm}>
+                <Button type="button" variant="outline" onClick={resetForm} disabled={saving}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editingItem ? 'Atualizar' : 'Criar'}
+                <Button type="submit" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    editingItem ? 'Atualizar' : 'Criar'
+                  )}
                 </Button>
               </div>
             </form>
@@ -277,62 +341,70 @@ const Procedimentos = () => {
           <CardTitle>Lista de Procedimentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Especialidade</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Duração</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {procedimentos.map((procedimento) => (
-                <TableRow key={procedimento.id}>
-                  <TableCell className="font-medium">{procedimento.nome}</TableCell>
-                  <TableCell>{procedimento.categoria}</TableCell>
-                  <TableCell>{getEspecialidadeNome(procedimento.especialidade_id)}</TableCell>
-                  <TableCell>{formatCurrency(procedimento.valor)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {formatDuration(procedimento.duracao)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      procedimento.ativo 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {procedimento.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(procedimento)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(procedimento.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {procedimentos.length === 0 ? (
+            <div className="text-center py-8">
+              <ClipboardList className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500">Nenhum procedimento cadastrado ainda.</p>
+              <p className="text-gray-400 text-sm">Clique em "Novo Procedimento" para começar.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Especialidade</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Duração</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {procedimentos.map((procedimento) => (
+                  <TableRow key={procedimento.id}>
+                    <TableCell className="font-medium">{procedimento.nome}</TableCell>
+                    <TableCell>{procedimento.categoria}</TableCell>
+                    <TableCell>{getEspecialidadeNome(procedimento.especialidade_id)}</TableCell>
+                    <TableCell>{formatCurrency(procedimento.valor)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {formatDuration(procedimento.duracao)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        procedimento.ativo 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {procedimento.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(procedimento)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(procedimento.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
