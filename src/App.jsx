@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useState } from 'react'
 import './App.css'
+import './styles/younv-theme.css'
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext'
