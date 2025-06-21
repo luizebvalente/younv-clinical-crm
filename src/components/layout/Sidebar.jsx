@@ -1,88 +1,211 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { 
-  LayoutDashboard, 
+  Home, 
   Users, 
-  Stethoscope, 
-  ClipboardList, 
   UserPlus, 
-  BarChart3,
-  X
+  Stethoscope, 
+  FileText, 
+  BarChart3, 
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Activity,
+  Calendar,
+  DollarSign
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import younvLogo from '@/assets/younv-logo.png'
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Médicos', href: '/medicos', icon: Users },
-  { name: 'Especialidades', href: '/especialidades', icon: Stethoscope },
-  { name: 'Procedimentos', href: '/procedimentos', icon: ClipboardList },
-  { name: 'Leads/Pacientes', href: '/leads', icon: UserPlus },
-  { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
-]
+const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggleCollapse }) => {
+  const menuItems = [
+    { 
+      id: 'dashboard', 
+      label: 'Dashboard', 
+      icon: Home, 
+      badge: null,
+      description: 'Visão geral'
+    },
+    { 
+      id: 'leads', 
+      label: 'Leads', 
+      icon: UserPlus, 
+      badge: '12',
+      description: 'Gestão de leads'
+    },
+    { 
+      id: 'medicos', 
+      label: 'Médicos', 
+      icon: Stethoscope, 
+      badge: null,
+      description: 'Profissionais'
+    },
+    { 
+      id: 'especialidades', 
+      label: 'Especialidades', 
+      icon: Activity, 
+      badge: null,
+      description: 'Áreas médicas'
+    },
+    { 
+      id: 'procedimentos', 
+      label: 'Procedimentos', 
+      icon: FileText, 
+      badge: null,
+      description: 'Serviços'
+    },
+    { 
+      id: 'relatorios', 
+      label: 'Relatórios', 
+      icon: BarChart3, 
+      badge: null,
+      description: 'Análises'
+    }
+  ]
 
-const Sidebar = ({ isOpen, onClose }) => {
-  const location = useLocation()
+  const quickStats = [
+    { label: 'Leads Hoje', value: '8', icon: UserPlus, color: 'text-blue-400' },
+    { label: 'Agendamentos', value: '15', icon: Calendar, color: 'text-green-400' },
+    { label: 'Receita', value: 'R$ 12.5k', icon: DollarSign, color: 'text-yellow-400' }
+  ]
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
-          onClick={onClose}
-        />
-      )}
+    <div className={`bg-gradient-to-b from-slate-800 to-slate-900 text-white transition-all duration-300 ${
+      isCollapsed ? 'w-16' : 'w-64'
+    } min-h-screen flex flex-col shadow-xl`}>
       
-      {/* Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="flex flex-col h-full">
-          {/* Mobile close button */}
-          <div className="flex items-center justify-between p-4 lg:hidden">
-            <span className="text-lg font-semibold text-gray-900">Menu</span>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-          
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={onClose}
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                    isActive
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                >
-                  <item.icon className={cn(
-                    "mr-3 h-5 w-5",
-                    isActive ? "text-blue-700" : "text-gray-400"
-                  )} />
-                  {item.name}
-                </Link>
-              )
-            })}
-          </nav>
-          
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="text-xs text-gray-500 text-center">
-              <p>Younv Consultoria</p>
-              <p>v1.0.0</p>
+      {/* Header */}
+      <div className="p-4 border-b border-slate-700">
+        <div className="flex items-center justify-between">
+          {!isCollapsed && (
+            <div className="flex items-center space-x-3">
+              <img 
+                src={younvLogo} 
+                alt="Younv" 
+                className="h-8 w-auto filter brightness-0 invert"
+              />
+              <div>
+                <h2 className="font-bold text-lg">Clinical CRM</h2>
+                <p className="text-xs text-slate-400">v2.0</p>
+              </div>
             </div>
-          </div>
+          )}
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleCollapse}
+            className="text-slate-400 hover:text-white hover:bg-slate-700"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
         </div>
       </div>
-    </>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4">
+        <div className="space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon
+            const isActive = activeItem === item.id
+            
+            return (
+              <button
+                key={item.id}
+                onClick={() => onItemClick(item.id)}
+                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 group ${
+                  isActive 
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+                title={isCollapsed ? item.label : ''}
+              >
+                <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                
+                {!isCollapsed && (
+                  <>
+                    <div className="flex-1 text-left">
+                      <div className="font-medium">{item.label}</div>
+                      <div className="text-xs text-slate-400 group-hover:text-slate-300">
+                        {item.description}
+                      </div>
+                    </div>
+                    
+                    {item.badge && (
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-blue-500 text-white text-xs"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+
+      {/* Quick Stats */}
+      {!isCollapsed && (
+        <div className="p-4 border-t border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-400 mb-3">Resumo Rápido</h3>
+          <div className="space-y-3">
+            {quickStats.map((stat, index) => {
+              const Icon = stat.icon
+              return (
+                <div key={index} className="flex items-center space-x-3 p-2 rounded-lg bg-slate-800/50">
+                  <Icon className={`h-4 w-4 ${stat.color}`} />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{stat.value}</div>
+                    <div className="text-xs text-slate-400">{stat.label}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="p-4 border-t border-slate-700">
+        {!isCollapsed ? (
+          <div className="space-y-2">
+            <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+              <Settings className="h-4 w-4" />
+              <span className="text-sm">Configurações</span>
+            </button>
+            
+            <div className="text-center pt-2">
+              <div className="text-xs text-slate-500">
+                © 2024 Younv Clinical CRM
+              </div>
+              <div className="flex items-center justify-center space-x-1 mt-1">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-xs text-slate-400">Sistema Online</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-400 hover:text-white hover:bg-slate-700"
+              title="Configurações"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
