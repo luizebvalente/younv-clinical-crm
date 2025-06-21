@@ -87,6 +87,7 @@ const Leads = () => {
         firebaseDataService.getAll('procedimentos')
       ])
       
+      console.log('Leads carregados:', leadsData) // Debug log
       setLeads(leadsData)
       setMedicos(medicosData)
       setEspecialidades(especialidadesData)
@@ -100,16 +101,19 @@ const Leads = () => {
   }
 
   const getMedicoNome = (id) => {
+    if (!id) return 'N/A'
     const medico = medicos.find(m => m.id === id)
     return medico ? medico.nome : 'N/A'
   }
 
   const getEspecialidadeNome = (id) => {
+    if (!id) return 'N/A'
     const especialidade = especialidades.find(e => e.id === id)
     return especialidade ? especialidade.nome : 'N/A'
   }
 
   const getProcedimentoNome = (id) => {
+    if (!id) return 'N/A'
     const procedimento = procedimentos.find(p => p.id === id)
     return procedimento ? procedimento.nome : 'N/A'
   }
@@ -143,16 +147,38 @@ const Leads = () => {
       setSaving(true)
       setError(null)
       
-      const data = {
-        ...formData,
+      // Preparar dados garantindo que todos os campos sejam incluídos
+      const dataToSave = {
+        nome_paciente: formData.nome_paciente || '',
+        telefone: formData.telefone || '',
+        data_nascimento: formData.data_nascimento || '',
+        email: formData.email || '',
+        canal_contato: formData.canal_contato || '',
+        solicitacao_paciente: formData.solicitacao_paciente || '',
+        medico_agendado_id: formData.medico_agendado_id || '',
+        especialidade_id: formData.especialidade_id || '',
+        procedimento_agendado_id: formData.procedimento_agendado_id || '',
+        agendado: formData.agendado || false,
+        motivo_nao_agendamento: formData.motivo_nao_agendamento || '',
+        outros_profissionais_agendados: formData.outros_profissionais_agendados || false,
+        quais_profissionais: formData.quais_profissionais || '',
+        pagou_reserva: formData.pagou_reserva || false,
+        tipo_visita: formData.tipo_visita || '',
         valor_orcado: parseFloat(formData.valor_orcado) || 0,
+        orcamento_fechado: formData.orcamento_fechado || '',
+        observacao_geral: formData.observacao_geral || '',
+        perfil_comportamental_disc: formData.perfil_comportamental_disc || '',
+        status: formData.status || 'Lead',
         data_registro_contato: editingItem ? editingItem.data_registro_contato : new Date().toISOString()
       }
       
+      console.log('Dados a serem salvos:', dataToSave) // Debug log
+      
       if (editingItem) {
-        await firebaseDataService.update('leads', editingItem.id, data)
+        await firebaseDataService.update('leads', editingItem.id, dataToSave)
       } else {
-        await firebaseDataService.create('leads', data)
+        const result = await firebaseDataService.create('leads', dataToSave)
+        console.log('Lead criado:', result) // Debug log
       }
       
       await loadData()
@@ -166,28 +192,29 @@ const Leads = () => {
   }
 
   const handleEdit = (item) => {
+    console.log('Editando item:', item) // Debug log
     setEditingItem(item)
     setFormData({
-      nome_paciente: item.nome_paciente,
-      telefone: item.telefone,
-      data_nascimento: item.data_nascimento,
-      email: item.email,
-      canal_contato: item.canal_contato,
-      solicitacao_paciente: item.solicitacao_paciente,
-      medico_agendado_id: item.medico_agendado_id,
-      especialidade_id: item.especialidade_id,
-      procedimento_agendado_id: item.procedimento_agendado_id,
-      agendado: item.agendado,
-      motivo_nao_agendamento: item.motivo_nao_agendamento,
-      outros_profissionais_agendados: item.outros_profissionais_agendados,
-      quais_profissionais: item.quais_profissionais,
-      pagou_reserva: item.pagou_reserva,
-      tipo_visita: item.tipo_visita,
+      nome_paciente: item.nome_paciente || '',
+      telefone: item.telefone || '',
+      data_nascimento: item.data_nascimento || '',
+      email: item.email || '',
+      canal_contato: item.canal_contato || '',
+      solicitacao_paciente: item.solicitacao_paciente || '',
+      medico_agendado_id: item.medico_agendado_id || '',
+      especialidade_id: item.especialidade_id || '',
+      procedimento_agendado_id: item.procedimento_agendado_id || '',
+      agendado: item.agendado || false,
+      motivo_nao_agendamento: item.motivo_nao_agendamento || '',
+      outros_profissionais_agendados: item.outros_profissionais_agendados || false,
+      quais_profissionais: item.quais_profissionais || '',
+      pagou_reserva: item.pagou_reserva || false,
+      tipo_visita: item.tipo_visita || '',
       valor_orcado: item.valor_orcado?.toString() || '',
-      orcamento_fechado: item.orcamento_fechado,
-      observacao_geral: item.observacao_geral,
-      perfil_comportamental_disc: item.perfil_comportamental_disc,
-      status: item.status
+      orcamento_fechado: item.orcamento_fechado || '',
+      observacao_geral: item.observacao_geral || '',
+      perfil_comportamental_disc: item.perfil_comportamental_disc || '',
+      status: item.status || 'Lead'
     })
     setIsDialogOpen(true)
   }
@@ -593,7 +620,7 @@ const Leads = () => {
                   <TableRow key={lead.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{lead.nome_paciente}</div>
+                        <div className="font-medium">{lead.nome_paciente || 'N/A'}</div>
                         <div className="text-sm text-gray-500">
                           {formatDate(lead.data_registro_contato)}
                         </div>
@@ -603,16 +630,16 @@ const Leads = () => {
                       <div className="space-y-1">
                         <div className="flex items-center text-sm">
                           <Phone className="h-3 w-3 mr-1" />
-                          {lead.telefone}
+                          {lead.telefone || 'N/A'}
                         </div>
                         <div className="flex items-center text-sm">
                           <Mail className="h-3 w-3 mr-1" />
-                          {lead.email}
+                          {lead.email || 'N/A'}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{lead.canal_contato}</Badge>
+                      <Badge variant="outline">{lead.canal_contato || 'N/A'}</Badge>
                     </TableCell>
                     <TableCell>
                       <div>
@@ -625,7 +652,7 @@ const Leads = () => {
                     <TableCell>{formatCurrency(lead.valor_orcado)}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(lead.status)}>
-                        {lead.status}
+                        {lead.status || 'Lead'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
