@@ -1,204 +1,182 @@
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Mail, Lock, Building2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import younvLogo from '@/assets/younv-logo.png'
 
 const Login = () => {
-  const [isLogin, setIsLogin] = useState(true)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    displayName: '',
-    confirmPassword: ''
-  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   
-  const { signIn, signUp, loading, error, clearError } = useAuth()
+  const { login } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    clearError()
-
-    if (!isLogin) {
-      // Validações para cadastro
-      if (formData.password !== formData.confirmPassword) {
-        return
-      }
-      
-      if (formData.password.length < 6) {
-        return
-      }
-      
-      await signUp(formData.email, formData.password, formData.displayName)
-    } else {
-      // Login
-      await signIn(formData.email, formData.password)
+    
+    try {
+      setLoading(true)
+      setError('')
+      await login(email, password)
+    } catch (err) {
+      console.error('Erro no login:', err)
+      setError('Credenciais inválidas. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
-
-  const toggleMode = () => {
-    setIsLogin(!isLogin)
-    clearError()
-    setFormData({
-      email: '',
-      password: '',
-      displayName: '',
-      confirmPassword: ''
-    })
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Younv Clinical CRM
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            {isLogin ? 'Entre na sua conta' : 'Crie sua conta'}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+      
+      <div className="w-full max-w-md relative z-10">
+        {/* Logo e Header */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-6">
+            <img 
+              src={younvLogo} 
+              alt="Younv" 
+              className="h-16 w-auto"
+            />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Clinical CRM
+          </h1>
+          <p className="text-gray-600 text-lg">
+            Sistema de Gestão de Clínicas
           </p>
+          <div className="flex items-center justify-center mt-4 text-sm text-gray-500">
+            <Building2 className="h-4 w-4 mr-2" />
+            Acesso Profissional
+          </div>
         </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-center">
-              {isLogin ? (
-                <>
-                  <LogIn className="h-5 w-5 mr-2" />
-                  Entrar
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-5 w-5 mr-2" />
-                  Cadastrar
-                </>
-              )}
-            </CardTitle>
+
+        {/* Card de Login */}
+        <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="space-y-1 pb-6">
+            <h2 className="text-2xl font-semibold text-center text-gray-800">
+              Entrar na Plataforma
+            </h2>
+            <p className="text-center text-gray-600">
+              Faça login para acessar seu painel
+            </p>
           </CardHeader>
+          
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div>
-                  <Label htmlFor="displayName">Nome Completo</Label>
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                  E-mail
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    id="displayName"
-                    name="displayName"
-                    type="text"
-                    value={formData.displayName}
-                    onChange={handleInputChange}
-                    required={!isLogin}
-                    placeholder="Seu nome completo"
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                    required
+                    disabled={loading}
                   />
                 </div>
-              )}
-              
-              <div>
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="seu@email.com"
-                />
               </div>
-              
-              <div>
-                <Label htmlFor="password">Senha</Label>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  Senha
+                </Label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="password"
-                    name="password"
                     type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={handleInputChange}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     required
-                    placeholder="Sua senha"
+                    disabled={loading}
                   />
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    disabled={loading}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
                     ) : (
                       <Eye className="h-4 w-4" />
                     )}
-                  </Button>
+                  </button>
                 </div>
               </div>
-              
-              {!isLogin && (
-                <div>
-                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    required={!isLogin}
-                    placeholder="Confirme sua senha"
-                  />
-                  {formData.password !== formData.confirmPassword && formData.confirmPassword && (
-                    <p className="text-sm text-red-600 mt-1">As senhas não coincidem</p>
-                  )}
-                </div>
-              )}
-              
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading || (!isLogin && formData.password !== formData.confirmPassword)}
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium text-base shadow-lg hover:shadow-xl transition-all duration-200"
+                disabled={loading}
               >
-                {loading ? 'Carregando...' : (isLogin ? 'Entrar' : 'Cadastrar')}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  'Entrar'
+                )}
               </Button>
             </form>
-            
-            <div className="mt-4 text-center">
-              <Button
-                type="button"
-                variant="link"
-                onClick={toggleMode}
-                className="text-sm"
-              >
-                {isLogin 
-                  ? 'Não tem uma conta? Cadastre-se' 
-                  : 'Já tem uma conta? Entre'
-                }
-              </Button>
+
+            {/* Footer do Card */}
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <div className="text-center">
+                <p className="text-xs text-gray-500">
+                  Esqueceu sua senha?{' '}
+                  <button className="text-blue-600 hover:text-blue-700 font-medium">
+                    Recuperar acesso
+                  </button>
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            Sistema de CRM para clínicas médicas
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-gray-500">
+            © 2024 Younv Clinical CRM. Todos os direitos reservados.
           </p>
+          <div className="flex justify-center space-x-4 mt-2 text-xs text-gray-400">
+            <button className="hover:text-gray-600">Termos de Uso</button>
+            <span>•</span>
+            <button className="hover:text-gray-600">Política de Privacidade</button>
+            <span>•</span>
+            <button className="hover:text-gray-600">Suporte</button>
+          </div>
         </div>
       </div>
+
+      {/* Elementos decorativos */}
+      <div className="absolute top-10 left-10 w-20 h-20 bg-blue-200 rounded-full opacity-20 animate-pulse"></div>
+      <div className="absolute bottom-10 right-10 w-32 h-32 bg-purple-200 rounded-full opacity-20 animate-pulse delay-1000"></div>
+      <div className="absolute top-1/2 left-5 w-16 h-16 bg-indigo-200 rounded-full opacity-20 animate-pulse delay-500"></div>
     </div>
   )
 }
