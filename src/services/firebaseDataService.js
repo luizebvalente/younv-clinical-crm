@@ -1,10 +1,84 @@
-// Novo serviço de dados usando Firebase
-import { firestoreService } from './firebase'
+// Serviço de dados híbrido Firebase/localStorage - VERSÃO CORRIGIDA
+import firestoreService from './firebase/firestore'
 
 class FirebaseDataService {
   constructor() {
-    this.useFirebase = true // Desabilitar Firebase para testes locais
+    this.useFirebase = true // Ativar Firebase
     this.initializeData()
+  }
+
+  // Mapeamento de nomes de coleções
+  getCollectionName(entity) {
+    const mapping = {
+      'especialidades': 'especialidades',
+      'medicos': 'medicos', 
+      'procedimentos': 'procedimentos',
+      'leads': 'leads'
+    }
+    return mapping[entity] || entity
+  }
+
+  // Transformar dados para formato Firebase (camelCase)
+  transformToFirebase(entity, data) {
+    if (entity === 'leads') {
+      return {
+        nomePackiente: data.nome_paciente,
+        telefone: data.telefone,
+        dataNascimento: data.data_nascimento,
+        email: data.email,
+        canalContato: data.canal_contato,
+        solicitacaoPaciente: data.solicitacao_paciente,
+        medicoAgendadoId: data.medico_agendado_id,
+        especialidadeId: data.especialidade_id,
+        procedimentoAgendadoId: data.procedimento_agendado_id,
+        agendado: data.agendado,
+        motivoNaoAgendamento: data.motivo_nao_agendamento,
+        outrosProfissionaisAgendados: data.outros_profissionais_agendados,
+        quaisProfissionais: data.quais_profissionais,
+        pagouReserva: data.pagou_reserva,
+        tipoVisita: data.tipo_visita,
+        valorOrcado: data.valor_orcado,
+        orcamentoFechado: data.orcamento_fechado,
+        observacaoGeral: data.observacao_geral,
+        perfilComportamentalDisc: data.perfil_comportamental_disc,
+        status: data.status,
+        dataRegistroContato: data.data_registro_contato
+      }
+    }
+    return data
+  }
+
+  // Transformar dados do Firebase para formato frontend (snake_case)
+  transformFromFirebase(entity, data) {
+    if (entity === 'leads') {
+      return {
+        id: data.id,
+        nome_paciente: data.nomePackiente || data.nome_paciente,
+        telefone: data.telefone,
+        data_nascimento: data.dataNascimento || data.data_nascimento,
+        email: data.email,
+        canal_contato: data.canalContato || data.canal_contato,
+        solicitacao_paciente: data.solicitacaoPaciente || data.solicitacao_paciente,
+        medico_agendado_id: data.medicoAgendadoId || data.medico_agendado_id,
+        especialidade_id: data.especialidadeId || data.especialidade_id,
+        procedimento_agendado_id: data.procedimentoAgendadoId || data.procedimento_agendado_id,
+        agendado: data.agendado,
+        motivo_nao_agendamento: data.motivoNaoAgendamento || data.motivo_nao_agendamento,
+        outros_profissionais_agendados: data.outrosProfissionaisAgendados || data.outros_profissionais_agendados,
+        quais_profissionais: data.quaisProfissionais || data.quais_profissionais,
+        pagou_reserva: data.pagouReserva || data.pagou_reserva,
+        tipo_visita: data.tipoVisita || data.tipo_visita,
+        valor_orcado: data.valorOrcado || data.valor_orcado,
+        orcamento_fechado: data.orcamentoFechado || data.orcamento_fechado,
+        observacao_geral: data.observacaoGeral || data.observacao_geral,
+        perfil_comportamental_disc: data.perfilComportamentalDisc || data.perfil_comportamental_disc,
+        status: data.status,
+        data_registro_contato: data.dataRegistroContato || data.data_registro_contato,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      }
+    }
+    return data
   }
 
   // Inicializar dados padrão
@@ -12,20 +86,16 @@ class FirebaseDataService {
     if (this.useFirebase) {
       await firestoreService.initializeDefaultData()
     } else {
-      // Inicializar dados padrão no localStorage se não existirem
       this.initializeLocalStorageData()
     }
   }
 
   initializeLocalStorageData() {
-    // Inicializar dados padrão se não existirem
+    // Dados padrão para localStorage (mantido para compatibilidade)
     if (!localStorage.getItem('younv_especialidades')) {
       const especialidades = [
         { id: '1', nome: 'Dermatologia', descricao: 'Cuidados com a pele', ativo: true },
-        { id: '2', nome: 'Cardiologia', descricao: 'Cuidados cardíacos', ativo: true },
-        { id: '3', nome: 'Ortopedia', descricao: 'Cuidados ortopédicos', ativo: true },
-        { id: '4', nome: 'Ginecologia', descricao: 'Saúde da mulher', ativo: true },
-        { id: '5', nome: 'Pediatria', descricao: 'Cuidados infantis', ativo: true }
+        { id: '2', nome: 'Cardiologia', descricao: 'Cuidados cardíacos', ativo: true }
       ]
       localStorage.setItem('younv_especialidades', JSON.stringify(especialidades))
     }
@@ -34,21 +104,11 @@ class FirebaseDataService {
       const medicos = [
         { 
           id: '1', 
-          nome: 'Dr. Carlos Silva', 
+          nome: 'Dr. João Silva', 
           crm: '12345-SP', 
-          email: 'carlos@clinica.com', 
-          telefone: '(11) 99999-1111', 
+          telefone: '(11) 99999-9999',
+          email: 'joao@clinica.com',
           especialidade_id: '1',
-          ativo: true,
-          data_cadastro: new Date().toISOString()
-        },
-        { 
-          id: '2', 
-          nome: 'Dra. Maria Santos', 
-          crm: '67890-SP', 
-          email: 'maria@clinica.com', 
-          telefone: '(11) 99999-2222', 
-          especialidade_id: '2',
           ativo: true,
           data_cadastro: new Date().toISOString()
         }
@@ -66,39 +126,13 @@ class FirebaseDataService {
           categoria: 'Consulta',
           especialidade_id: '1',
           ativo: true
-        },
-        { 
-          id: '2', 
-          nome: 'Ecocardiograma', 
-          valor: 350, 
-          duracao: 45, 
-          categoria: 'Exame',
-          especialidade_id: '2',
-          ativo: true
         }
       ]
       localStorage.setItem('younv_procedimentos', JSON.stringify(procedimentos))
     }
 
     if (!localStorage.getItem('younv_leads')) {
-      const leads = [
-        {
-          id: '1',
-          data_registro_contato: new Date().toISOString(),
-          nome_paciente: 'Ana Silva',
-          telefone: '(11) 98888-1111',
-          data_nascimento: '1985-05-15',
-          email: 'ana@email.com',
-          canal_contato: 'Instagram',
-          solicitacao_paciente: 'Consulta para tratamento de acne',
-          medico_agendado_id: '1',
-          especialidade_id: '1',
-          procedimento_agendado_id: '1',
-          agendado: true,
-          status: 'Convertido'
-        }
-      ]
-      localStorage.setItem('younv_leads', JSON.stringify(leads))
+      localStorage.setItem('younv_leads', JSON.stringify([]))
     }
   }
 
@@ -106,7 +140,14 @@ class FirebaseDataService {
   async getAll(entity) {
     if (this.useFirebase) {
       try {
-        return await firestoreService.getAll(this.getCollectionName(entity))
+        const data = await firestoreService.getAll(this.getCollectionName(entity))
+        console.log(`Dados brutos do Firebase para ${entity}:`, data) // Debug
+        
+        // Transformar dados do Firebase para formato frontend
+        const transformedData = data.map(item => this.transformFromFirebase(entity, item))
+        console.log(`Dados transformados para ${entity}:`, transformedData) // Debug
+        
+        return transformedData
       } catch (error) {
         console.error('Erro ao buscar dados do Firebase, usando localStorage como fallback')
         return this.getFromLocalStorage(entity)
@@ -119,7 +160,8 @@ class FirebaseDataService {
   async getById(entity, id) {
     if (this.useFirebase) {
       try {
-        return await firestoreService.getById(this.getCollectionName(entity), id)
+        const data = await firestoreService.getById(this.getCollectionName(entity), id)
+        return data ? this.transformFromFirebase(entity, data) : null
       } catch (error) {
         console.error('Erro ao buscar dados do Firebase, usando localStorage como fallback')
         const items = this.getFromLocalStorage(entity)
@@ -136,7 +178,12 @@ class FirebaseDataService {
       try {
         // Transformar dados para o formato Firebase
         const firebaseData = this.transformToFirebase(entity, item)
-        return await firestoreService.create(this.getCollectionName(entity), firebaseData)
+        console.log(`Criando no Firebase - ${entity}:`, firebaseData) // Debug
+        
+        const result = await firestoreService.create(this.getCollectionName(entity), firebaseData)
+        console.log(`Resultado da criação no Firebase:`, result) // Debug
+        
+        return this.transformFromFirebase(entity, result)
       } catch (error) {
         console.error('Erro ao criar no Firebase, usando localStorage como fallback')
         return this.createInLocalStorage(entity, item)
@@ -151,7 +198,8 @@ class FirebaseDataService {
       try {
         // Transformar dados para o formato Firebase
         const firebaseData = this.transformToFirebase(entity, updatedItem)
-        return await firestoreService.update(this.getCollectionName(entity), id, firebaseData)
+        const result = await firestoreService.update(this.getCollectionName(entity), id, firebaseData)
+        return this.transformFromFirebase(entity, result)
       } catch (error) {
         console.error('Erro ao atualizar no Firebase, usando localStorage como fallback')
         return this.updateInLocalStorage(entity, id, updatedItem)
@@ -174,160 +222,10 @@ class FirebaseDataService {
     }
   }
 
-  // Métodos específicos para relatórios
-  async getLeadsByPeriod(startDate, endDate) {
-    if (this.useFirebase) {
-      try {
-        return await firestoreService.getLeadsByPeriod(startDate, endDate)
-      } catch (error) {
-        console.error('Erro ao buscar leads por período no Firebase')
-        // Fallback para localStorage
-        const leads = this.getFromLocalStorage('leads')
-        return leads.filter(lead => {
-          const leadDate = new Date(lead.data_registro_contato || lead.dataRegistroContato)
-          return leadDate >= new Date(startDate) && leadDate <= new Date(endDate)
-        })
-      }
-    } else {
-      const leads = this.getFromLocalStorage('leads')
-      return leads.filter(lead => {
-        const leadDate = new Date(lead.data_registro_contato)
-        return leadDate >= new Date(startDate) && leadDate <= new Date(endDate)
-      })
-    }
-  }
-
-  async getConversionRate() {
-    if (this.useFirebase) {
-      try {
-        return await firestoreService.getConversionRate()
-      } catch (error) {
-        console.error('Erro ao calcular taxa de conversão no Firebase')
-        return this.getConversionRateFromLocalStorage()
-      }
-    } else {
-      return this.getConversionRateFromLocalStorage()
-    }
-  }
-
-  async getLeadsByChannel() {
-    if (this.useFirebase) {
-      try {
-        return await firestoreService.getLeadsByChannel()
-      } catch (error) {
-        console.error('Erro ao buscar leads por canal no Firebase')
-        return this.getLeadsByChannelFromLocalStorage()
-      }
-    } else {
-      return this.getLeadsByChannelFromLocalStorage()
-    }
-  }
-
-  async getMedicoStats() {
-    if (this.useFirebase) {
-      try {
-        return await firestoreService.getMedicoStats()
-      } catch (error) {
-        console.error('Erro ao buscar estatísticas de médicos no Firebase')
-        return this.getMedicoStatsFromLocalStorage()
-      }
-    } else {
-      return this.getMedicoStatsFromLocalStorage()
-    }
-  }
-
-  // Utilitários para transformação de dados
-  getCollectionName(entity) {
-    // Mapear nomes de entidades para nomes de coleções Firebase
-    const mapping = {
-      'medicos': 'medicos',
-      'especialidades': 'especialidades',
-      'procedimentos': 'procedimentos',
-      'leads': 'leads'
-    }
-    return mapping[entity] || entity
-  }
-
-  transformToFirebase(entity, data) {
-    // Transformar dados do formato localStorage para Firebase
-    const transformed = { ...data }
-    
-    // Remover campos que não devem ir para o Firebase
-    delete transformed.id
-    delete transformed.data_cadastro
-    
-    // Transformar nomes de campos para camelCase (padrão Firebase)
-    if (entity === 'medicos') {
-      if (transformed.especialidade_id) {
-        transformed.especialidadeId = transformed.especialidade_id
-        delete transformed.especialidade_id
-      }
-    }
-    
-    if (entity === 'procedimentos') {
-      if (transformed.especialidade_id) {
-        transformed.especialidadeId = transformed.especialidade_id
-        delete transformed.especialidade_id
-      }
-    }
-    
-    if (entity === 'leads') {
-      // Transformar todos os campos snake_case para camelCase
-      const fieldMapping = {
-        'data_registro_contato': 'dataRegistroContato',
-        'nome_paciente': 'nomePaciente',
-        'data_nascimento': 'dataNascimento',
-        'canal_contato': 'canalContato',
-        'solicitacao_paciente': 'solicitacaoPaciente',
-        'medico_agendado_id': 'medicoAgendadoId',
-        'especialidade_id': 'especialidadeId',
-        'procedimento_agendado_id': 'procedimentoAgendadoId',
-        'motivo_nao_agendamento': 'motivoNaoAgendamento',
-        'outros_profissionais_agendados': 'outrosProfissionaisAgendados',
-        'quais_profissionais': 'quaisProfissionais',
-        'pagou_reserva': 'pagouReserva',
-        'tipo_visita': 'tipoVisita',
-        'valor_orcado': 'valorOrcado',
-        'orcamento_fechado': 'orcamentoFechado',
-        'observacao_geral': 'observacaoGeral',
-        'perfil_comportamental_disc': 'perfilComportamentalDisc'
-      }
-      
-      Object.keys(fieldMapping).forEach(oldKey => {
-        if (transformed[oldKey] !== undefined) {
-          transformed[fieldMapping[oldKey]] = transformed[oldKey]
-          delete transformed[oldKey]
-        }
-      })
-      
-      // Transformar follow-ups em array
-      const followUps = []
-      for (let i = 2; i <= 5; i++) {
-        const followUpKey = `follow_up_${i}`
-        const dateKey = `data_follow_up_${i}`
-        
-        if (transformed[followUpKey] || transformed[dateKey]) {
-          followUps.push({
-            numero: i,
-            texto: transformed[followUpKey] || '',
-            data: transformed[dateKey] || ''
-          })
-          delete transformed[followUpKey]
-          delete transformed[dateKey]
-        }
-      }
-      
-      if (followUps.length > 0) {
-        transformed.followUps = followUps
-      }
-    }
-    
-    return transformed
-  }
-
-  // Métodos de fallback para localStorage
+  // Métodos localStorage (fallback)
   getFromLocalStorage(entity) {
-    const data = localStorage.getItem(`younv_${entity}`)
+    const key = `younv_${entity}`
+    const data = localStorage.getItem(key)
     return data ? JSON.parse(data) : []
   }
 
@@ -336,7 +234,7 @@ class FirebaseDataService {
     const newItem = {
       ...item,
       id: Date.now().toString(),
-      data_cadastro: new Date().toISOString()
+      data_registro_contato: item.data_registro_contato || new Date().toISOString()
     }
     items.push(newItem)
     localStorage.setItem(`younv_${entity}`, JSON.stringify(items))
@@ -361,68 +259,45 @@ class FirebaseDataService {
     return true
   }
 
-  getConversionRateFromLocalStorage() {
-    const leads = this.getFromLocalStorage('leads')
-    const total = leads.length
-    const converted = leads.filter(lead => lead.status === 'Convertido').length
-    return total > 0 ? (converted / total * 100).toFixed(1) : 0
-  }
-
-  getLeadsByChannelFromLocalStorage() {
-    const leads = this.getFromLocalStorage('leads')
-    const channels = {}
-    leads.forEach(lead => {
-      channels[lead.canal_contato] = (channels[lead.canal_contato] || 0) + 1
-    })
-    return channels
-  }
-
-  getMedicoStatsFromLocalStorage() {
-    const leads = this.getFromLocalStorage('leads')
-    const medicos = this.getFromLocalStorage('medicos')
-    const stats = {}
-    
-    medicos.forEach(medico => {
-      const medicoLeads = leads.filter(lead => lead.medico_agendado_id === medico.id)
-      stats[medico.nome] = {
-        total_leads: medicoLeads.length,
-        agendados: medicoLeads.filter(lead => lead.agendado).length,
-        convertidos: medicoLeads.filter(lead => lead.status === 'Convertido').length
+  // Métodos específicos para relatórios
+  async getLeadsByPeriod(startDate, endDate) {
+    if (this.useFirebase) {
+      try {
+        const data = await firestoreService.getLeadsByPeriod(startDate, endDate)
+        return data.map(item => this.transformFromFirebase('leads', item))
+      } catch (error) {
+        console.error('Erro ao buscar leads por período no Firebase')
+        const leads = this.getFromLocalStorage('leads')
+        return leads.filter(lead => {
+          const leadDate = new Date(lead.data_registro_contato)
+          return leadDate >= new Date(startDate) && leadDate <= new Date(endDate)
+        })
       }
-    })
-    
-    return stats
-  }
-
-  // Método para alternar entre Firebase e localStorage
-  setUseFirebase(useFirebase) {
-    this.useFirebase = useFirebase
-  }
-
-  // Método para migrar dados do localStorage para Firebase
-  async migrateFromLocalStorage() {
-    if (!this.useFirebase) {
-      console.log('Firebase não está habilitado')
-      return
+    } else {
+      const leads = this.getFromLocalStorage('leads')
+      return leads.filter(lead => {
+        const leadDate = new Date(lead.data_registro_contato)
+        return leadDate >= new Date(startDate) && leadDate <= new Date(endDate)
+      })
     }
+  }
 
-    try {
-      const entities = ['especialidades', 'medicos', 'procedimentos', 'leads']
-      
-      for (const entity of entities) {
-        const localData = this.getFromLocalStorage(entity)
-        console.log(`Migrando ${localData.length} registros de ${entity}`)
-        
-        for (const item of localData) {
-          const firebaseData = this.transformToFirebase(entity, item)
-          await firestoreService.create(this.getCollectionName(entity), firebaseData)
-        }
+  async getConversionRate() {
+    if (this.useFirebase) {
+      try {
+        return await firestoreService.getConversionRate()
+      } catch (error) {
+        console.error('Erro ao calcular taxa de conversão no Firebase')
+        const leads = this.getFromLocalStorage('leads')
+        const total = leads.length
+        const converted = leads.filter(lead => lead.status === 'Convertido').length
+        return total > 0 ? (converted / total * 100).toFixed(1) : 0
       }
-      
-      console.log('Migração concluída com sucesso!')
-    } catch (error) {
-      console.error('Erro durante a migração:', error)
-      throw error
+    } else {
+      const leads = this.getFromLocalStorage('leads')
+      const total = leads.length
+      const converted = leads.filter(lead => lead.status === 'Convertido').length
+      return total > 0 ? (converted / total * 100).toFixed(1) : 0
     }
   }
 }
